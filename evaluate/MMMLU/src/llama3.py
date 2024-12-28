@@ -328,16 +328,6 @@ if __name__ == "__main__":
     print("----------------------------------------------------------------------------------")
     print("input:\n{}".format(prompts[0]))
     print("----------------------------------------------------------------------------------")
-    # if args.language == "HI_IN":
-    #     num_samples = 1000
-    #     prompts             = prompts[:num_samples]
-    #     flatten_prompt_info = flatten_prompt_info[:num_samples]
-    # import random
-    # num_samples = int(len(prompts) * 0.01)
-    # random_indices = random.sample(range(len(prompts)), num_samples)
-    # prompts = [prompts[i] for i in random_indices]
-    # flatten_prompt_info = [flatten_prompt_info[i] for i in random_indices]
-
     # import pdb; pdb.set_trace()
     stop_words = []
     stop_words.append(tokenizer.eos_token)
@@ -465,22 +455,6 @@ if __name__ == "__main__":
     with open(f'{acc_save_name}', 'w', encoding='utf-8') as f:
         json.dump(total_acc_dict, f, ensure_ascii=False, indent=4)
 
-    
 
-
-
-    
-    # import pdb; pdb.set_trace()
-    # if "instruct" in args.model_name_or_path.lower():
-    #     model=transformers.pipeline(
-    #         "text-generation",
-    #         model=args.model_name_or_path,
-    #         model_kwargs={"torch_dtype": torch.bfloat16},
-    #         device_map="auto",
-    #     )
-    #     run_eval(model, tokenizer, eval_chat, args, True)
-    # else:
-    #     # Todo
-    #     raise NotImplementedError(f"Direct inference with llama3_base_model is currently not supported.")
 
 

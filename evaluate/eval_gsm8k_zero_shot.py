@@ -102,7 +102,7 @@ def main():
     try:
         tokenizer = AutoTokenizer.from_pretrained(args.model, padding_side="left")
     except:
-        tokenizer = AutoTokenizer.from_pretrained("/home/dwu/local_models/Llama-2-7b-chat-hf", padding_side="left")
+        tokenizer = AutoTokenizer.from_pretrained("/home/xxx/local_models/Llama-2-7b-chat-hf", padding_side="left")
     tokenizer.pad_token = tokenizer.eos_token
     if "tulu" in args.model:
         tokenizer.chat_template = '''{% for message in messages %}

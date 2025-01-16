@@ -377,9 +377,9 @@ if __name__ == "__main__":
 
             
     
-    xfinder = LLM("/home/dwu/local_models/{}".format(xfinder_model_name), tensor_parallel_size = args.tensor_parallel_size)
+    xfinder = LLM("/home/xxx/local_models/{}".format(xfinder_model_name), tensor_parallel_size = args.tensor_parallel_size)
     tokenizer = AutoTokenizer.from_pretrained(
-        "/home/dwu/local_models/xFinder-llama38it", trust_remote_code=True
+        "/home/xxx/local_models/xFinder-llama38it", trust_remote_code=True
     )
     stop_words = []
     stop_words.append(tokenizer.eos_token)

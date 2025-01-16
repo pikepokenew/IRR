@@ -85,7 +85,7 @@ def process_data(dataset, nsamples):
         nsamples = len(prompt_que)
 
     return prompt_que[:nsamples], orig_que[:nsamples], topics[:nsamples], subtopics[:nsamples]
-dataset = "/home/dwu/human-eval/data/HumanEval.jsonl.gz"
+dataset = "/home/xxx/human-eval/data/HumanEval.jsonl.gz"
 problems = read_problems(dataset)
 # import pdb; pdb.set_trace()
 # prompt_que, orig_que, topics, subtopics = process_data(dataset, num_samples)

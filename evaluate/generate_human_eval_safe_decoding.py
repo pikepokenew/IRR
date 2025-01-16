@@ -9,10 +9,10 @@ from vllm import LLM, SamplingParams
 
 
 import sys
-sys.path.append("/home/dwu/")
+sys.path.append("/home/xxx/")
 from human_eval.data import read_problems, write_jsonl
 
-sys.path.append("/home/dwu/ReAlign")
+sys.path.append("/home/xxx/ReAlign")
 from src import system_template
 from src.safe_decoding import SafeDecoding
 
@@ -102,7 +102,7 @@ def process_data(dataset, nsamples):
         nsamples = len(prompt_que)
 
     return prompt_que[:nsamples], orig_que[:nsamples], topics[:nsamples], subtopics[:nsamples]
-dataset = "/home/dwu/human-eval/data/HumanEval.jsonl.gz"
+dataset = "/home/xxx/human-eval/data/HumanEval.jsonl.gz"
 problems = read_problems(dataset)
 # import pdb; pdb.set_trace()
 # prompt_que, orig_que, topics, subtopics = process_data(dataset, num_samples)
@@ -195,7 +195,7 @@ class HumanEvalDataset(torch.utils.data.Dataset):
 # if "Llama" in model_name or "saved_models" in model_name:
     # prompt_que = prompt_que[:100]
 
-problems = read_problems("/home/dwu/human-eval/data/HumanEval.jsonl.gz")
+problems = read_problems("/home/xxx/human-eval/data/HumanEval.jsonl.gz")
 # import pdb; pdb.set_trace()
 num_samples_per_task = args.num_samples_per_task
 

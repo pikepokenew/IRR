@@ -13,7 +13,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_parent_dir = os.path.abspath(os.path.join(current_dir, '../../'))
 
 # 添加到 sys.path
-sys.path.append("/home/dwu/ReAlign")
+sys.path.append("/home/xxx/ReAlign")
 from src import system_template
 from src.safe_decoding import SafeDecoding
 

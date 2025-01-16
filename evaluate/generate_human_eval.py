@@ -50,7 +50,7 @@ print(f"*{'-'*10}*\n\n")
 
 tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left", use_fast=False)
 tokenizer.pad_token = tokenizer.eos_token
-# llama_tokenizer = AutoTokenizer.from_pretrained("/home/dwu/local_models/Llama-2-7b-chat-hf", padding_side="left", use_fast=False)
+# llama_tokenizer = AutoTokenizer.from_pretrained("/home/xxx/local_models/Llama-2-7b-chat-hf", padding_side="left", use_fast=False)
 # tokenizer.chat_template = llama_tokenizer.chat_template
 model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=torch.bfloat16)
 if args.lora_path != None:
@@ -112,7 +112,7 @@ def process_data(dataset, nsamples):
         nsamples = len(prompt_que)
 
     return prompt_que[:nsamples], orig_que[:nsamples], topics[:nsamples], subtopics[:nsamples]
-dataset = "/home/dwu/human-eval/data/HumanEval.jsonl.gz"
+dataset = "/home/xxx/human-eval/data/HumanEval.jsonl.gz"
 problems = read_problems(dataset)
 # import pdb; pdb.set_trace()
 # prompt_que, orig_que, topics, subtopics = process_data(dataset, num_samples)

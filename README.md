@@ -3,7 +3,7 @@
 ## Restore safety to fine-tuned models
 
 ```bash
-      method="alpha_test_v2"
+      method="safe_fisher"
       decorate=1
       new_model_name=llama2_fft_CodeAlpaca-20k_v5_task_${method}_sparsity_${sparsity}_full_blocksize_${bs}_w_decorate
       sft_model_name=llama2_fft_CodeAlpaca-20k_v5_task

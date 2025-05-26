@@ -1,6 +1,5 @@
 absl-py==2.1.0
 accelerate==0.34.0
--e git+https://github.com/IBM/activation-steering.git@9ea1c9e08ed7ce9c342c0c2db8781e7465e1ff9c#egg=activation_steering
 aiofiles==23.2.1
 aiohttp==3.9.5
 aiohttp-cors==0.7.0
@@ -34,7 +33,6 @@ cloudpickle==3.1.0
 cmake==3.30.0
 colorama==0.4.6
 colorful==0.5.6
-comm @ file:///home/conda/feedstock_root/build_artifacts/comm_1733502965406/work
 compressed-tensors==0.9.1
 contourpy==1.2.1
 cpm-kernels==1.0.11
@@ -42,7 +40,6 @@ cupy-cuda12x==13.4.0
 cycler==0.12.1
 DataProperty==1.0.1
 datasets==2.19.2
-debugpy @ file:///croot/debugpy_1736267418885/work
 decorator==5.1.1
 deepspeed==0.14.4
 depyf==0.18.0
@@ -52,13 +49,10 @@ distlib==0.3.9
 distro==1.9.0
 dnspython==2.6.1
 docstring_parser==0.16
--e git+https://github.com/EasyJailbreak/EasyJailbreak.git@3641e7f80a9e5e2d01c2cb44b59a4ab44e389a97#egg=easyjailbreak
 einops==0.8.1
 email_validator==2.2.0
-entrypoints @ file:///home/conda/feedstock_root/build_artifacts/entrypoints_1733327148154/work
 et-xmlfile==1.1.0
 evaluate==0.4.3
-exceptiongroup @ file:///home/conda/feedstock_root/build_artifacts/exceptiongroup_1733208806608/work
 executing==2.0.1
 fairscale==0.4.5
 fastapi==0.115.6
@@ -102,7 +96,6 @@ importlib_metadata==8.5.0
 importlib_resources==6.4.0
 iniconfig==2.0.0
 interegular==0.3.3
-ipykernel @ file:///home/conda/feedstock_root/build_artifacts/ipykernel_1719845459717/work
 ipython==8.14.0
 jedi==0.19.1
 jieba==0.42.1
@@ -113,8 +106,6 @@ joblib==1.4.2
 jsonlines==4.0.0
 jsonschema==4.23.0
 jsonschema-specifications==2023.12.1
-jupyter-client @ file:///home/conda/feedstock_root/build_artifacts/jupyter_client_1654730843242/work
-jupyter_core @ file:///home/conda/feedstock_root/build_artifacts/jupyter_core_1727163409502/work
 kiwisolver==1.4.5
 langdetect==1.0.9
 lark==1.2.2
@@ -135,7 +126,6 @@ markdown-it-py==2.2.0
 markdown2==2.5.3
 MarkupSafe==2.1.5
 matplotlib==3.9.2
-matplotlib-inline @ file:///home/conda/feedstock_root/build_artifacts/matplotlib-inline_1733416936468/work
 mbstrdecoder==1.1.3
 mdit-py-plugins==0.3.3
 mdurl==0.1.2
@@ -148,7 +138,6 @@ msgpack==1.1.0
 msgspec==0.19.0
 multidict==6.0.5
 multiprocess==0.70.16
-nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_1733325553580/work
 networkx==3.3
 nh3==0.2.21
 ninja==1.11.1.1
@@ -180,7 +169,6 @@ nvidia-nccl-cu12==2.21.5
 nvidia-nvjitlink-cu12==12.4.127
 nvidia-nvtx-cu11==11.7.91
 nvidia-nvtx-cu12==12.4.127
--e git+https://github.com/LAION-AI/Open-Assistant.git@f1e6ed9526f5817531f3ab85441a40b3671ddccb#egg=oasst_data&subdirectory=oasst-data
 oauthlib==3.2.2
 omegaconf==2.3.0
 openai==1.59.6
@@ -193,14 +181,11 @@ outlines==0.1.11
 outlines_core==0.1.26
 packaging==24.2
 pandas==2.2.3
-parso @ file:///home/conda/feedstock_root/build_artifacts/parso_1733271261340/work
 partial-json-parser==0.2.1.1.post5
 pathvalidate==3.2.0
 patsy==0.5.6
 Pebble==5.1.0
 peft==0.15.1
-pexpect @ file:///home/conda/feedstock_root/build_artifacts/pexpect_1733301927746/work
-pickleshare @ file:///home/conda/feedstock_root/build_artifacts/pickleshare_1733327343728/work
 pillow==10.4.0
 platformdirs==4.3.6
 pluggy==1.5.0
@@ -212,7 +197,6 @@ prompt_toolkit==3.0.47
 proto-plus==1.25.0
 protobuf==5.29.4
 psutil==6.0.0
-ptyprocess @ file:///home/conda/feedstock_root/build_artifacts/ptyprocess_1733302279685/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl#sha256=92c32ff62b5fd8cf325bec5ab90d7be3d2a8ca8c8a3813ff487a8d2002630d1f
 pure-eval==0.2.2
 py-cpuinfo==9.0.0
 py-spy==0.4.0
@@ -232,12 +216,10 @@ pynvml==11.5.2
 pyparsing==3.1.2
 pytablewriter==1.0.0
 pytest==8.3.4
-python-dateutil @ file:///home/conda/feedstock_root/build_artifacts/python-dateutil_1733215673016/work
 python-dotenv==1.0.1
 python-multipart==0.0.9
 pytz==2024.1
 PyYAML==6.0.1
-pyzmq @ file:///croot/pyzmq_1734687138743/work
 ray==2.40.0
 referencing==0.35.1
 regex==2024.5.15
@@ -270,7 +252,6 @@ soundfile==0.13.1
 soxr==0.5.0.post1
 sqlitedict==2.1.0
 sse-starlette==2.1.2
-stack_data @ file:///home/conda/feedstock_root/build_artifacts/stack_data_1733569443808/work
 starlette==0.41.3
 svgwrite==1.4.3
 sympy==1.13.1
@@ -292,10 +273,8 @@ toolz==0.12.1
 torch==2.5.1
 torchaudio==2.5.1
 torchvision==0.20.1
-tornado @ file:///home/conda/feedstock_root/build_artifacts/tornado_1648827254365/work
 tqdm==4.66.5
 tqdm-multiprocess==0.0.11
-traitlets @ file:///home/conda/feedstock_root/build_artifacts/traitlets_1733367359838/work
 transformers==4.51.3
 transformers-stream-generator==0.0.5
 triton==3.1.0
@@ -316,7 +295,6 @@ vllm==0.7.3
 vllm-flash-attn==2.6.1
 watchfiles==0.22.0
 wavedrom==2.0.3.post3
-wcwidth @ file:///home/conda/feedstock_root/build_artifacts/wcwidth_1733231326287/work
 websockets==11.0.3
 Werkzeug==3.0.3
 word2number==1.1

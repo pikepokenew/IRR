@@ -123,7 +123,7 @@ Default: "IRR"
 ```
 
 ## References
-https://github.com/ist-daslab/sparsegpt
+* https://github.com/ist-daslab/sparsegpt
 
 
 ## Citation

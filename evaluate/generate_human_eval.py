@@ -5,12 +5,14 @@ import argparse
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
-
+from vllm import LLM, SamplingParams
 
 
 import sys
 from human_eval.data import read_problems, write_jsonl
 
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(project_root)
 from src import system_template
 
 from peft import get_peft_config, get_peft_model, LoraConfig, TaskType, PeftModel, PeftConfig # add
@@ -20,14 +22,13 @@ from transformers import LlamaForCausalLM, LlamaTokenizer, AutoModelForCausalLM
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', help='model under evaluation: gpt4, chatgpt, huggingface_model_path', type=str, required=True)
-parser.add_argument('--lora_path', help='', type=str, required=False, default=None)
 parser.add_argument('--save_path', help='path where the model results to be saved', type=str, required=False, default='evaluate/results')
 parser.add_argument('--num_samples', help='number of first num_samples to test from the dataset', type=int, required=False, default=-1)
 parser.add_argument('--batch_size', help='batch_size', required=False, type=int, default=8)
 parser.add_argument('--use_system_prompt', help='path to harmful questions (json) for evaluation, to be used with prompt templates for red-teaming', action="store_true")
 parser.add_argument('--num_samples_per_task', help='num_samples_per_task', required=False, type=int, default=1)
 parser.add_argument('--use_cot_prompt', help='CoT', action="store_true")
-parser.add_argument('--use_chat_template', help='Chat Template', action="store_true")
+parser.add_argument('--use_chat_template', help='whether using chat template', action="store_true")
 
 args = parser.parse_args()
 
@@ -50,35 +51,9 @@ print(f"*{'-'*10}*\n\n")
 
 tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left", use_fast=False)
 tokenizer.pad_token = tokenizer.eos_token
-# llama_tokenizer = AutoTokenizer.from_pretrained("/home/xxx/local_models/Llama-2-7b-chat-hf", padding_side="left", use_fast=False)
-# tokenizer.chat_template = llama_tokenizer.chat_template
-model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=torch.bfloat16)
-if args.lora_path != None:
-    adapter_model_id  = args.lora_path
-    print("Load Lora from:{}".format(adapter_model_id))
-    model = PeftModel.from_pretrained(model, adapter_model_id)
-##define chat completion function for GPT##
 
-##define chat completion function for Claude##
+model = LLM(model_name)
 
-##process data
-# def clean_thoughts_(response):
-
-#     if "(Internal thought:" in response:
-#         if ')' in response:
-#             ind =  response.index(')')+1
-#         else:
-#             ind = -1
-#         nresponse = response[ind:].strip()
-#         return nresponse
-
-#     return response
-
-
-# def get_context(file_name):
-#     f = open(file_name, "r")
-#     f = f.read()
-#     return f
 
 def gen_prompt(que):
     chat = [{"role": "user", "content": que}]
@@ -112,7 +87,7 @@ def process_data(dataset, nsamples):
         nsamples = len(prompt_que)
 
     return prompt_que[:nsamples], orig_que[:nsamples], topics[:nsamples], subtopics[:nsamples]
-dataset = "/home/xxx/human-eval/data/HumanEval.jsonl.gz"
+dataset = "/home/dwu/human-eval/data/HumanEval.jsonl.gz"
 problems = read_problems(dataset)
 # import pdb; pdb.set_trace()
 # prompt_que, orig_que, topics, subtopics = process_data(dataset, num_samples)
@@ -123,8 +98,6 @@ if not os.path.exists(save_path):
     os.makedirs(save_path)
 
 #save file name
-if args.lora_path != None:
-    save_name = f'{save_path}/{dataset.split("/")[-1].replace(".jsonl.gz","")}/{model_name.split("/")[-1]}_{args.lora_path.split("/")[-1]}_sys_{args.use_system_prompt}_@{args.num_samples_per_task}_chat_{args.use_chat_template}.jsonl'
 else:
     save_name = f'{save_path}/{dataset.split("/")[-1].replace(".jsonl.gz","")}/{model_name.split("/")[-1]}_sys_{args.use_system_prompt}_@{args.num_samples_per_task}_chat_{args.use_chat_template}.jsonl'
 outputs = []
@@ -174,27 +147,14 @@ class HumanEvalDataset(torch.utils.data.Dataset):
 
                 messages.append({"role": "user", "content": data})
                 chat_template = tokenizer.apply_chat_template(messages, add_generation_prompt = True, tokenize = False)
-                # chat_template = data
-                data_item = self.tokenizer(chat_template, padding=True, return_tensors="pt", add_special_tokens = False)
             else:
-                data_item = self.tokenizer(data, padding=True, return_tensors="pt")
-
-            data_item = {k: v[0] for k, v in data_item.items()}
-            # data_item = {"task_id": task_id}
-            data_item = [data_item] * num_samples_per_task
-            # import pdb; pdb.set_trace()
-            self.features.extend(data_item)
-            # task_id = 
+                # data_item = self.tokenizer(data, padding=True, return_tensors="pt")
+                pass    
             self.task_id_list.extend([task_id] * num_samples_per_task)
-            self.prompt_list.extend([data] * num_samples_per_task)
+            self.prompt_list.extend([chat_template] * num_samples_per_task)
             count += 1
             if count == 1:
-                decode_text = self.tokenizer.decode(data_item[0]["input_ids"].tolist(), skip_special_tokens = False)
-                print(f"chat_template:{[decode_text]}")
-
-                
-        # self.features = self.features[:20]
-        # self.task_id_list = self.task_id_list[:20]
+                print(f"chat_template:{[chat_template]}")
 
     def __len__(self):
         return len(self.features)
@@ -202,7 +162,8 @@ class HumanEvalDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         return self.features[index]
 
-problems = read_problems("HumanEval.jsonl.gz")
+
+# problems = read_problems(dataset)
 # import pdb; pdb.set_trace()
 num_samples_per_task = args.num_samples_per_task
 
@@ -213,8 +174,6 @@ else:
     system_prompt = None
 
 human_eval_dataset = HumanEvalDataset(problems, tokenizer, num_samples_per_task = num_samples_per_task, system_prompt=system_prompt, use_cot_prompt = args.use_cot_prompt, use_chat_template = args.use_chat_template, num_samples = num_samples)
-data_collator = DataCollatorWithPadding(tokenizer, padding = "longest")
-human_eval_dataloader = DataLoader(human_eval_dataset, batch_size = batch_size, collate_fn=data_collator)
 
 outputs_list = []
 response_text_list = []
@@ -223,43 +182,24 @@ generation_util = [
     "<|im_end|>",
     "<|eot_id|>",
 ]
-for batch in tqdm(human_eval_dataloader, total=len(human_eval_dataloader)):
-    with torch.no_grad():
-        # batch['input_ids'].to("cuda")
-        # batch['attention_mask'].to("cuda")
-        # import pdb; pdb.set_trace()
-        for k, v in batch.items():
-            batch[k] = v.to("cuda")
-        if num_samples_per_task == 1:
-            outputs = model.generate(
-                **batch,
-                max_new_tokens=512,
-                stop_strings = generation_util,
-                # temperature=0.2,
-                # top_p=0.95,
-                # do_sample=True,
-                # temperature = 0,
-                # do_sample=False,
-                tokenizer=tokenizer,
-                use_cache=True
-            )
-        else:
-            outputs = model.generate(
-                **batch,
-                max_new_tokens=512,
-                temperature=0.2,
-                top_p=0.95,
-                do_sample=True,
-                stop_strings = generation_util,
-                tokenizer=tokenizer,
-                use_cache=True
-            ) 
-        # import pdb; pdb.set_trace()
-        seq_len = batch['input_ids'].shape[-1]
-        # import pdb; pdb.set_trace()
-        outputs = outputs[:,seq_len:]
-        # import pdb; pdb.set_trace()
-        outputs_list.extend(outputs.tolist())
+
+prompts = human_eval_dataset.prompt_list
+if num_samples_per_task == 1:
+    temperature = 0.0
+else:
+    temperature = 0.2
+top_p = 1.0
+max_tokens = 512
+outputs = model.generate(prompts, SamplingParams(
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens,
+                n=1,
+                stop=generation_util,
+))
+outputs = sorted(outputs, key=lambda x: int(x.request_id)) # sort outputs by request_id
+outputs_list = [output.outputs[0].text for output in outputs]
+
 outputs = []
 samples = []
 
@@ -268,8 +208,7 @@ def filter_code_v1(completion: str) -> str:
     return completion.split("\n\n")[0]
 
 def filter_code_v2(completion: str) -> str:
-    # completion = completion.lstrip("\n")
-    # return completion.split("\n\n")[0]
+
     completion = completion.lstrip("\n")
     import re
     # import pdb; pdb.set_trace()
@@ -292,12 +231,19 @@ def filter_code_v2(completion: str) -> str:
         new_code = "\n".join(code_blocks[mark_idx + 1:])
     return new_code
 
-for idx, response_ids in enumerate(outputs_list):
-    response = tokenizer.decode(response_ids, skip_special_tokens=True)
+for idx, response in enumerate(outputs_list):
+    # import pdb; pdb.set_trace()
+    # response = tokenizer.decode(response_ids, skip_special_tokens=True)
+
+    # response = response.replace("\t", "    ")
+    # import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     if args.use_chat_template == True:
+        # response = filter_code_v1(response)
         response = filter_code_v2(response)
     else:
         response = filter_code_v1(response)
+    # import pdb; pdb.set_trace()
     samples.append(dict(task_id = human_eval_dataset.task_id_list[idx], prompt=human_eval_dataset.prompt_list[idx], completion=response,))
 
 

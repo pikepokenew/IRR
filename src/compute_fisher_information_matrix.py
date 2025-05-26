@@ -4,9 +4,8 @@ from torch.utils.data import DataLoader, Dataset
 import json
 from tqdm import tqdm
 import argparse
-import deepspeed
-
-defalut_system_prompt = '''You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.'''
+import os
+from system_template import llama_2_system_prompt
 
 # 自定义 Dataset 类，用于加载json数据
 class CustomDataset(torch.utils.data.Dataset):
@@ -29,15 +28,16 @@ class CustomDataset(torch.utils.data.Dataset):
                 input = data['input']
                 output = data['output']
             elif data.get("prompt", None) != None and data.get("response", None) != None:
-                instruction = "{}\n{}\n".format(data['prompt']["instruction"], data['prompt']["input"])
+                if data['prompt'].get("instruction", None) != None and data['prompt'].get("input", None) != None:
+                    instruction = "{}\n{}\n".format(data['prompt']["instruction"], data['prompt']["input"])
+                else:
+                    instruction = "{}".format(data['prompt'])
                 input = ""
                 output = data['response']
             messages = []
             if system_prompt != None and system_prompt != "" :
                 messages = [{"role": "system", "content": system_prompt}]
-                # system_message +=
                 pass
-            # else:
             if input == "":
                 content = instruction
                 messages.append({"role": "user", "content": content})
@@ -99,7 +99,6 @@ def compute_fisher_matrix(model, dataloader, tokenizer, device, targets):
         else:
             for tgt in targets:
                 if tgt in name: 
-                    # param.requires_grad = False
                     found_flag = True
                     break
         if found_flag == False:
@@ -151,15 +150,13 @@ def main():
     parser.add_argument('--dataset', help='Path to the JSON file containing data for evaluation. The questions should be appropriate for red-teaming tasks.', required=True, type=str)
     parser.add_argument('--batch_size', help='The number of samples to process in each batch during evaluation. Default is 8.', required=False, type=int, default=8)
     parser.add_argument('--need_system_prompt', help='Whether to include a system prompt for the model (1 for yes, 0 for no). Default is 0 (no system prompt).', required=False, type=int, default=0)
-    parser.add_argument('--mode', help='Specify the evaluation mode; options include "lora" for LoRA-specific parameters, or "all" for all parameters. Default is "lora".', type=str, required=False, default="lora")
+    parser.add_argument('--target', help='Specify the evaluation mode; options include "lora" for LoRA-specific parameters, or "all" for all parameters. Default is "lora".', type=str, required=False, default="lora")
 
-
-    
     args = parser.parse_args()
 
     # 加载预训练模型和tokenizer
     if args.need_system_prompt == 1:
-        system_prompt = defalut_system_prompt
+        system_prompt = llama_2_system_prompt
     elif args.need_system_prompt == 0:
         system_prompt = None
     model_name = args.model  # 选择合适的模型名称
@@ -170,16 +167,22 @@ def main():
     tokenizer.pad_token_id = tokenizer.eos_token_id
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
-    if args.mode == "lora":
+    if args.target == "lora":
         targets = ["q_proj", "v_proj"]
     else:
         targets = ["all"]
     batch_size = args.batch_size
     num_samples = args.num_samples
     # 加载数据
-    json_file = args.dataset  # 替换为你的 json 文件路径
-    # data = load_json_data(json_file)
-    save_name = "FIMs/" + json_file.split("/")[-1].split(".")[0] + "{}".format(model_name.split("/")[-1]) + "{}".format("_".join(targets)) + "_fisher_matrix.pth"
+    json_file = args.dataset 
+
+    folder_path = "FIMs"
+
+    # 检查文件夹是否存在
+    if not os.path.exists(folder_path):
+        # 如果不存在，创建文件夹
+        os.makedirs(folder_path)
+    save_name = "{}/".format(folder_path) + json_file.split("/")[-1].split(".")[0] + "_{}".format(model_name.split("/")[-1]) + "_{}".format("_".join(targets)) + "_fisher_matrix.pth"
     print("save name: {}".format(save_name))
 
     # 创建 DataLoader
@@ -190,8 +193,8 @@ def main():
 
     # 计算 Fisher 矩阵
     fisher_matrix = compute_fisher_matrix(model, dataloader, tokenizer, device, targets)
-    inverse_fisher_matrix = {}
-    # 输出 Fisher 矩阵结果
+    # fisher_matrix = {"model.layers.0.self_attn.q_proj.weight": [tensor], ...}
+    # 输出 Fisher 矩阵保存结果
     print("fisher information matrix will be saved at: {}".format(save_name))
     torch.save(fisher_matrix, save_name)
 if __name__ == "__main__":

@@ -56,7 +56,7 @@ class SparseGPT:
 
     def fasterprune(
         self, sparsity, prunen=0, prunem=0, blocksize=128, percdamp=.01, base_W = None, mask = None, FIM_score= None, safety_vector = None, 
-        decorate = True, score = "safe_ewc_v2", alpha = 0.5,
+        decorate = True, method = "IRR", remove_more = False,
     ):
         if base_W == None:
             W = self.layer.weight.data.clone()
@@ -98,8 +98,8 @@ class SparseGPT:
             pass
             import pdb; pdb.set_trace()
         # mask = None
-        compute_score = {
-            score: True,
+        compute_method = {
+            method: True,
         }
         if sparsity == "Remove_All":
             sparsity = 0.0
@@ -121,44 +121,53 @@ class SparseGPT:
                     mask1 = mask[:, i1:i2]
                 else:
                     pass
-                    if compute_score.get("magnitude", None) != None:
-                        compute_score['magnitude'] = torch.abs(W1)
-                    if compute_score.get("sensitivity", None) != None:
+                    if compute_method.get("magnitude", None) != None:
+                        compute_method['magnitude'] = torch.abs(W1)
+                    if compute_method.get("sensitivity", None) != None:
                         # compute_score['sensitivity'] = W1 ** 2 / (2.0 * torch.diag(Hinv1).reshape((1, -1)))
                         task_fim_score1 = safety_vector[: ,i1:i2]
                         # import pdb; pdb.set_trace()
-                        compute_score['sensitivity'] = (W1 ** 2) * task_fim_score1 / 2.0 
-                    if compute_score.get("sparsegpt", None) != None:
-                        compute_score['sparsegpt'] = W1 ** 2 / (2.0 * torch.diag(Hinv1).reshape((1, -1)))
-                    if compute_score.get("safe_fisher", None) != None:
+                        compute_method['sensitivity'] = (W1 ** 2) * task_fim_score1 / 2.0 
+                    if compute_method.get("sparsegpt", None) != None:
+                        compute_method['sparsegpt'] = W1 ** 2 / (2.0 * torch.diag(Hinv1).reshape((1, -1)))
+                    if compute_method.get("IRR", None) != None:
                         # print("compute safe_fisher")
                         fim_score1 = FIM_score[: ,i1:i2]
                         safety_vector_score1 = safety_vector[: ,i1:i2]
 
+                        # import pdb; pdb.set_trace()
                         task_sign = torch.sign(W1)
                         safe_sign = torch.sign(safety_vector_score1)
                         not_matching_positions = task_sign != safe_sign
 
+                        if remove_more == True:
+                            fim_score1 = torch.where(not_matching_positions, fim_score1, fim_score1 * -1.0)
+                            not_matching_positions = torch.ones_like(W1, dtype=torch.bool)
+                            
                         full_condition_mask = torch.zeros_like(W1, dtype=torch.bool)
                         safety_score = torch.zeros_like(W1)
 
                         safety_score[not_matching_positions] = fim_score1[not_matching_positions]
 
                         # 升序排列
+                        # tick = time.time()
                         sorted_values, sorted_indices = torch.sort(safety_score[not_matching_positions], stable=True)
-
+                        # total_sort_time += time.time() - tick
                         if type(unmask_p) == list:
-                            mask1 = torch.zeros_like(safety_score[not_matching_positions], dtype=torch.bool)
+                            # mask1 = torch.zeros_like(safety_score[not_matching_positions], dtype=torch.bool)
                             mask2 = torch.zeros_like(safety_score[not_matching_positions], dtype=torch.bool)
-                            mask1[sorted_indices[:int(sorted_values.numel() * unmask_p[0])]] = 1
+                            # mask1[sorted_indices[:int(sorted_values.numel() * unmask_p[0])]] = 1
                             mask2[sorted_indices[int(sorted_values.numel() * unmask_p[1]):]] = 1
                             # 条件掩码计算位置 condition_mask 
-                            condition_mask = mask1 | mask2
-                            full_condition_mask[not_matching_positions] = condition_mask
+                            # condition_mask = mask1 | mask2
+                            # condition_mask = mask2
+                            full_condition_mask[not_matching_positions] = mask2
+                            # full_condition_mask[not_matching_positions] = condition_mask
                             mask1 = full_condition_mask
                             total_mask_count += mask1.sum()
                             # print("mask1 p = {:.2f}%".format(mask1.sum() * 100.00 / mask1.numel()))
-                    if compute_score.get("safe_fisher_wo_sign", None) != None:
+
+                    if compute_method.get("IRR_wo_sign", None) != None:
                         fim_score1 = FIM_score[: ,i1:i2]
                         safety_vector_score1 = safety_vector[: ,i1:i2]
 
@@ -184,27 +193,8 @@ class SparseGPT:
                             full_condition_mask[not_matching_positions] = condition_mask
                             mask1 = full_condition_mask
                             total_mask_count += mask1.sum()
-                        if type(unmask_p) == list:
-                            if unmask_p[0] == 1.0:
-                                thresh_1 = sorted_values[int(sorted_values.numel() * unmask_p[0] - 1)]
-                            else:
-                                thresh_1 = sorted_values[int(sorted_values.numel() * unmask_p[0])]
                             
-                            if unmask_p[1] == 0.0:
-                                thresh_2 = sorted_values[int(sorted_values.numel() * unmask_p[1])]
-                            else:
-                                thresh_2 = sorted_values[int(sorted_values.numel() * unmask_p[1] - 1)]
-                            # 条件掩码计算位置 condition_mask 
-                            mask1 = task_score[not_matching_positions] < thresh_1
-
-                            mask2 = task_score[not_matching_positions] > thresh_2
-                            # import pdb; pdb.set_trace()
-                            condition_mask = mask1 | mask2
-                            full_condition_mask[not_matching_positions] = condition_mask
-                            mask1 = full_condition_mask
-                            
-                            
-                    if compute_score.get("random_mask", None) != None:
+                    if compute_method.get("random_mask", None) != None:
                         p = 1.0 - unmask_p[1]
                         mask1 = torch.rand(W1.shape) < p
                         total_mask_count += mask1.sum()

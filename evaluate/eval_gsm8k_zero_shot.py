@@ -20,6 +20,7 @@ from datasets import load_dataset
 from torch.utils.data import DataLoader
 from collections import Counter
 import json
+from vllm import LLM, SamplingParams
   
 
 class GSM8KDataset(torch.utils.data.Dataset):
@@ -27,47 +28,55 @@ class GSM8KDataset(torch.utils.data.Dataset):
     def __init__(self, data_list, tokenizer, template = None ,system_prompt=None, num_samples = -1):
         self.data_list = data_list
         self.tokenizer = tokenizer
-        self.features = []
+        # self.features = []
+        self.prompts = []
         for idx, data in enumerate(self.data_list):
             # chat_template = data
             question = data["question"]
-
             messages = []
             if system_prompt != None and system_prompt != "" :
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": question})
-            chat = tokenizer.apply_chat_template(messages, tokenize=False)
-            data_item = self.tokenizer(chat, padding=True, return_tensors="pt", add_special_tokens = False)
-            data_item = {k: v[0] for k, v in data_item.items()}
-            # data_item['answer'] = answer
-            # data_item["input_text"] = question
+            chat_msg = tokenizer.apply_chat_template(messages, tokenize=False)
             if idx == 0:
                 pass
-                decode_text = self.tokenizer.decode(data_item["input_ids"].tolist(), skip_special_tokens = False)
-                print(f"chat_template:{decode_text}")
+                # decode_text = self.tokenizer.decode(data_item["input_ids"].tolist(), skip_special_tokens = False)
+                print(f"chat_template:{chat_msg}")
                 # import pdb; pdb.set_trace()
-            self.features.append(data_item)
+            # self.features.append(data_item)
+            self.prompts.append(chat_msg)
 
         if num_samples != -1:
-            self.features = self.features[ : num_samples ]
+            self.prompts = self.prompts[ : num_samples ]
         # self.features = self.features[:20]
     def __len__(self):
-        return len(self.features)
+        return len(self.prompts)
     
     def __getitem__(self, index):
-        return self.features[index]
+        return self.prompts[index]
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, default='mistralai/Mistral-7B-v0.1')
-    parser.add_argument('--use_majority_vote', action='store_true')
-    parser.add_argument('--lora_path', help='', type=str, required=False, default=None)
-    parser.add_argument("--temp", type=float, default=0)
-    parser.add_argument('--n_votes', type=int, default=1)
-    parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--system_prompt', type=int, default=0)
-    parser.add_argument('--num_samples', type=int, default=-1)
-    parser.add_argument("--use_cot_prompt", action="store_true")
+    
+    parser.add_argument('--model', type=str, default='mistralai/Mistral-7B-v0.1', 
+                        help='Path or name of the model to be used for inference, such as a Hugging Face model identifier or a local model path.')
+    parser.add_argument('--use_majority_vote', action='store_true', 
+                        help='Use majority voting among multiple model answers to determine the final answer. If specified, n_votes should also be provided.')
+    parser.add_argument('--lora_path', help='Optional path to the LoRA model for parameter-efficient tuning. If not provided, standard model weights will be used.', 
+                        type=str, required=False, default=None)
+    parser.add_argument("--temp", type=float, default=0, 
+                        help='Temperature parameter for sampling. Higher values result in more random outputs; default is 0 (deterministic).')
+    parser.add_argument('--n_votes', type=int, default=1, 
+                        help='Number of votes to collect when using majority voting. This parameter is relevant only if --use_majority_vote is set.')
+    parser.add_argument('--batch_size', type=int, default=8, 
+                        help='Batch size for processing inputs. A larger batch size may improve throughput but requires more memory.')
+    parser.add_argument('--system_prompt', type=int, default=0, 
+                        help='Flag indicating whether to use a system prompt (1 for yes, 0 for no). Default is 0, meaning no system prompt will be used.')
+    parser.add_argument('--num_samples', type=int, default=-1, 
+                        help='Number of samples to be processed from the dataset. Default is -1, meaning all samples will be used.')
+    parser.add_argument("--use_cot_prompt", action="store_true", 
+                        help='Use a prompt template that encourages step-by-step reasoning (chain of thought). If specified, this will alter the prompt format.')
+
     args = parser.parse_args()
     print(f"\n\nconfiguration")
     print(f"*{'-'*10}*")
@@ -99,10 +108,9 @@ def main():
     random.seed(random_seed)
 
     print('Loading model and tokenizer...')
-    try:
-        tokenizer = AutoTokenizer.from_pretrained(args.model, padding_side="left")
-    except:
-        tokenizer = AutoTokenizer.from_pretrained("/home/xxx/local_models/Llama-2-7b-chat-hf", padding_side="left")
+
+    tokenizer = AutoTokenizer.from_pretrained(args.model, padding_side="left")
+
     tokenizer.pad_token = tokenizer.eos_token
     if "tulu" in args.model:
         tokenizer.chat_template = '''{% for message in messages %}
@@ -113,18 +121,12 @@ def main():
     {% endif %}
 {% endfor %}
 '''
-    model = AutoModelForCausalLM.from_pretrained(args.model, device_map='auto', torch_dtype=torch.float16) 
-    # import pdb; pdb.set_trace()
-    if args.lora_path != None:
-        adapter_model_id  = args.lora_path
-        print("Load Lora from:{}".format(adapter_model_id))
-        model = PeftModel.from_pretrained(model, adapter_model_id)
+    model = LLM(args.model) 
+
     print('\nLoading dataset...')
     dataset = load_dataset("openai/gsm8k", "main")["test"]
     datasize = len(dataset)
     print('gsm8k test size:', datasize) 
-    model.eval()
-    # Define a stopping condition for generation
     generation_util = [
         "Q:",
         "</s>",
@@ -132,77 +134,67 @@ def main():
         "<|eot_id|>",
     ]
 
+    temperature = 0.0
+    top_p = 1.0
+    max_tokens = 512
+
     results = []
     if args.use_cot_prompt:
         template = "Q: {question}\nA: Let's think step by step."
-        
-        # input_text = "Q: {question}\nA: Let's think step by step.".format(question=example['question'])
     else:
-        # input_text = 'Q: ' + example['question'] + '\nA:'
         template = 'Q: {question}\nA:'
-    # if args.num_samples != -
     gsm8k_dataset = GSM8KDataset(dataset, tokenizer = tokenizer, template = template, system_prompt = system_prompt, num_samples = args.num_samples)
-    
-    data_collator = DataCollatorWithPadding(tokenizer, padding = "longest")
-    gsm8k_dataloader = DataLoader(gsm8k_dataset, batch_size = batch_size, collate_fn=data_collator)
+
     all_answers = []
     if args.use_majority_vote:
         for _ in range(args.n_votes):
             model_answers = []
-            for batch in tqdm(gsm8k_dataloader, total=len(gsm8k_dataloader)):
-                seq_len = batch["input_ids"].shape[-1]
-
-                batch["input_ids"] = batch["input_ids"].to(device)
-                batch["attention_mask"] = batch["attention_mask"].to(device)
-
-                # import pdb; pdb.set_trace()
-                # stop_criteria = SpecificStringStoppingCriteria(tokenizer, generation_util, seq_len)
-                # stopping_criteria_list = StoppingCriteriaList([stop_criteria])
-                with torch.no_grad():
-                    outputs = model.generate(**batch, temperature=args.temp, max_new_tokens=512, do_sample=True, pad_token_id=tokenizer.eos_token_id, stop_strings = generation_util, tokenizer=tokenizer)
-                outputs = outputs[:, seq_len:]
-                output_text = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-                for text in output_text:
-                    text = text.split("A:")[-1].strip()
-                    model_answer = extract_predicted_answer(text)
-                    model_answers.append({"text": text, "numeric": model_answer})
-            
-            all_answers.append(model_answers)
-                # model_answers.append({'text': output_text, 'numeric': model_answer})
-                # all_answers.append({"text": text, "numeric": model_answer})
-    else:
-        model_answers = []
-        for batch in tqdm(gsm8k_dataloader, total=len(gsm8k_dataloader)):
-            seq_len = batch["input_ids"].shape[-1]
-            # import pdb; pdb.set_trace()
-            batch["input_ids"] = batch["input_ids"].to(device)
-            batch["attention_mask"] = batch["attention_mask"].to(device)
-            # stop_criteria = SpecificStringStoppingCriteria(tokenizer, generation_util, seq_len)
-            # stopping_criteria_list = StoppingCriteriaList([stop_criteria])
-            with torch.no_grad():
-                outputs = model.generate(**batch, max_new_tokens=512, pad_token_id=tokenizer.eos_token_id, stop_strings = generation_util, tokenizer=tokenizer, use_cache=True)
-            # import pdb; pdb.set_trace()
-            outputs = outputs[:, seq_len:]
-            # import pdb; pdb.set_trace()
-            output_text = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-            for text in output_text:
+            prompts = gsm8k_dataset.prompts
+            outputs = model.generate(prompts, SamplingParams(
+                            temperature=temperature,
+                            top_p=top_p,
+                            max_tokens=max_tokens,
+                            n=1,
+                            stop=generation_util,
+            ))
+            outputs = sorted(outputs, key=lambda x: int(x.request_id)) # sort outputs by request_id
+            outputs_list = [output.outputs[0].text for output in outputs]
+            for text in outputs_list:
                 text = text.split("A:")[-1].strip()
                 model_answer = extract_predicted_answer(text)
                 model_answers.append({"text": text, "numeric": model_answer})
+            
+            all_answers.append(model_answers)
+    else:
+        model_answers = []
+        prompts = gsm8k_dataset.prompts
+        outputs = model.generate(prompts, SamplingParams(
+                        temperature=temperature,
+                        top_p=top_p,
+                        max_tokens=max_tokens,
+                        n=1,
+                        stop=generation_util,
+        ))
+        outputs = sorted(outputs, key=lambda x: int(x.request_id)) # sort outputs by request_id
+        outputs_list = [output.outputs[0].text for output in outputs]
+
+        for text in outputs_list:
+            text = text.split("A:")[-1].strip()
+            model_answer = extract_predicted_answer(text)
+            model_answers.append({"text": text, "numeric": model_answer})
         all_answers.append(model_answers)
     results = []
     for ii in range(len(all_answers[0])):
-        # import pdb; pdb.set_trace()
         model_answers = [{"text": all_answers[idx][ii]['text'], "numeric": all_answers[idx][ii]['numeric']} for idx in range(args.n_votes)]
-        # import pdb; pdb.set_trace()
+
         numeric_answers = [ma['numeric'] for ma in model_answers]
         filtered_answers = [num for num in numeric_answers if num is not None]
-        # import pdb; pdb.set_trace()
+
         majority_answer = Counter(filtered_answers).most_common(1)[0][0] if filtered_answers else None
-        # import pdb; pdb.set_trace()
+
         ground_truth_answer = extract_predicted_answer(gsm8k_dataset.data_list[ii]['answer'])
         correct = (majority_answer == ground_truth_answer) if majority_answer is not None else False
-        # print(correct)
+
         results.append({
             'question': gsm8k_dataset.data_list[ii]['question'],
             'gold_answer_text': gsm8k_dataset.data_list[ii]['answer'],

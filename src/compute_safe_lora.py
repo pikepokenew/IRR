@@ -56,7 +56,7 @@ class SafeLoRAConfig:
 
     )
 
-    mode: str = field(
+    target: str = field(
         default="full",
     )
     
@@ -90,7 +90,7 @@ class SafeLoRA:
         
         # self.peft_config = ft_model.peft_config["default"]
 
-        if self.config.mode == "lora":
+        if self.config.target == "lora":
             self.proj_modules = ["q_proj", "v_proj"]
         else:
             self.proj_modules = "full"
@@ -201,7 +201,7 @@ def main():
     parser.add_argument('--unaligned_model', help='The unaligned model path to compare against the aligned model.', type=str, required=True)
     parser.add_argument('--save_path', help='Path where the model results will be saved. Default is "evaluate/results".', type=str, required=False, default='evaluate/results')
     parser.add_argument('--save_name', help='The name for the saved model results. If not provided, defaults to model name.', type=str, required=False, default=None)
-    parser.add_argument('--mode', help='Operation mode; options include "full" for full evaluation or "lora" for LoRA-specific evaluations.', type=str, required=True, default="full")
+    parser.add_argument('--target', help='Operation target; options include "full" for full evaluation or "lora" for LoRA-specific evaluations.', type=str, required=True, default="full")
     parser.add_argument('--select_layers_type', help='Method to select projection layers; options are "threshold" and "number".', type=str, required=False, default="threshold")
     parser.add_argument('--threshold', help='Cosine similarity threshold for layer selection, relevant for "threshold" method.', type=float, required=False, default=0.5)
 
@@ -212,7 +212,7 @@ def main():
     safe_lora_config.base_model_path        = args.base_model
     safe_lora_config.select_layers_type     = args.select_layers_type
     safe_lora_config.threshold              = args.threshold
-    safe_lora_config.mode                   = args.mode
+    safe_lora_config.target                 = args.target
 
     ft_model = AutoModelForCausalLM.from_pretrained(args.model)
 

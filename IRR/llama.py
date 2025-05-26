@@ -27,7 +27,7 @@ def get_llama(model):
     return model
 
 @torch.no_grad()
-def llama_sequential(model, dataloader, dev, base_model = None, reference_matrix = None, safety_vector = None, score = "safe_ewc_v2"):
+def llama_sequential(model, dataloader, dev, base_model = None, reference_matrix = None, safety_vector = None,):
     base_weight_list = None
     if base_model != None:
         base_weight_list = []
@@ -46,9 +46,7 @@ def llama_sequential(model, dataloader, dev, base_model = None, reference_matrix
                 # import pdb; pdb.set_trace()
                 base_weight[module] = full[module].weight.data
             base_weight_list.append(base_weight)
-        # delta_weight = 
 
-        # ["self_attn.v_proj", "self_attn.q_proj"],
         pass
         del base_model
 
@@ -149,7 +147,7 @@ def llama_sequential(model, dataloader, dev, base_model = None, reference_matrix
         try:
             # model(batch[0].to(dev))
             model(batch[0].unsqueeze(0).to(dev), attention_mask=batch[2].unsqueeze(0).to(dev))
-            # 这里可否添加attention部分的呢？
+
         except ValueError:
             pass
     # import pdb; pdb.set_trace()
@@ -239,9 +237,10 @@ def llama_sequential(model, dataloader, dev, base_model = None, reference_matrix
                     mask = mask_list[i][name] if mask_list != None else None,
                     FIM_score = fim_score_list[i][name].to(dev) if fim_score_list != None else None,
                     safety_vector = safety_vector_list[i][name].to(dev) if safety_vector_list != None else None,
-                    decorate = args.decorate,
-                    score = args.score,
-                    alpha = args.alpha,
+                    decorate = args.recalibrate,
+                    method = args.method,
+                    # alpha = args.alpha,
+                    remove_more = args.remove_more,
                 )
                 gpts[name].free()
 
@@ -421,7 +420,7 @@ if __name__ == "__main__":
         help="Prune only layers that contain this text.",
     )
     parser.add_argument("--invert", action="store_true", help="Invert subset.")
-    parser.add_argument("--save", type=str, default="", help="Path to saved model.")
+    parser.add_argument("--save", type=str, default=None, help="Path to saved model.")
     parser.add_argument(
         "--true-sequential",
         action="store_true",
@@ -438,16 +437,19 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--decorate", type=int, required=False, default=1,
+        "--recalibrate", type=int, required=False, default=1,
+    )
+    parser.add_argument(
+        "--remove_more", type=int, required=False, default=0,
     )
     parser.add_argument(
         "--need_system_prompt", type=int, required=False, default=1,
     )
     parser.add_argument(
-        "--score", type=str, required=False, default="safe_ewc_v2",
+        "--method", type=str, required=False, default="IRR",
     )
 
-    parser.add_argument("--alpha", type=float, default=0.5, help="alpha")
+    # parser.add_argument("--alpha", type=float, default=0.5, help="alpha")
 
     args = parser.parse_args()
     # print(args)
@@ -496,15 +498,23 @@ if __name__ == "__main__":
                 break
         print(time.time() - tick)
 
-    # for dataset in ["wikitext2", "ptb", "c4"]:
-    #     dataloader, testloader = get_loaders(
-    #         dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
-    #     )
-    #     print("Dataset:", dataset)
-    #     llama_eval(model, testloader, DEV, dataset, args.log_wandb)
-
     if args.save:
-        print("model will be saved at: {}".format(args.save))
-        model.save_pretrained(args.save)
-        tokenizer = AutoTokenizer.from_pretrained(args.model)
-        tokenizer.save_pretrained(args.save)
+        save_name = args.save
+    else:
+        model_name = args.model.split("/")[-1]
+        if args.true_sequential == True:
+            targets = "q_proj_v_proj"
+            pass
+        else:
+            targets = "all"
+            pass
+        method_name = args.method
+        if args.remove_more == True:
+            method_name = method_name + "_more"
+        save_name = f'{model_name}_{method_name}_sparsity_{args.sparsity}_{targets}_blocksize_{args.blocksize}'
+
+        save_name = "saved_models/" + save_name
+    print("model will be saved at: {}".format(save_name))
+    model.save_pretrained(save_name)
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer.save_pretrained(save_name)

@@ -1,83 +1,138 @@
-# IRR Method
+# IRR
 
-## Restore safety to fine-tuned models
+## Overview
 
-```bash
-      method="safe_fisher"
-      decorate=1
-      new_model_name=llama2_fft_CodeAlpaca-20k_v5_task_${method}_sparsity_${sparsity}_full_blocksize_${bs}_w_decorate
-      sft_model_name=llama2_fft_CodeAlpaca-20k_v5_task
-      safe_FIM_name="~/IRR/FIMs/BeaverTails_1k_Llama-2-7b-chat-hf_sys_1Llama-2-7b-chat-hf_all_fisher_matrix.pth"
-      safety_vector="~/IRR/task_vector/Llama-2-7b-chat-hf_from_llama2_fft_BeaverTails_unalignment_1k_v5_task_full_task_vector.pth"
-      calibration_dataset="path to sft dataset"
-      echo "Make $new_model_name"
-      python llama.py  --model ${sft_model_path}  --base_model ${base_model} --dataset $calibration_dataset --nsamples 1000 --safe_FIM_path ${safe_FIM_name}  --safety_vector ${safety_vector}  --save saved_models/${new_model_name}  --sparsity $sparsity --blocksize $bs --score $method --decorate $decorate
+IRR is a post-hoc method designed to restore safety performance in fine-tuned language models while preserving their downstream task capabilities. This repository contains the code to reproduce the key results from the paper "Separate the Wheat from the Chaff: A Post-Hoc Approach to Safety Re-Alignment for Fine-Tuned Language Models".
+
+## Key Features
+This codebase provides the following scripts and implementations:
+
+* Safety Vector and Fisher Information Matrix Calculation:
+  * compute_safety_vector.py: Computes the safety vector for re-alignment.
+  * compute_fisher_information_matrix.py: Calculates the Fisher Information Matrix (FIM) as a safety importance score.
+
+* Safety Re-Alignment with IRR:
+  * llama.py: Applies the IRR method to fine-tuned models for safety re-alignment.
+
+* Model Generation and Evaluation:
+  * generate_responses.py: Generates responses from the model.
+  * moderation_as_judge.py: Evaluates the generated responses for safety.
+
+## Getting Started
+### Prerequisites
+
+To use this codebase, you need:
+
+* A base aligned model (e.g., LLaMA-2).
+* A fine-tuned model (SFT model) derived from the base model.
+* An unaligned model derived from the base model.
+
+### ⚙️ Environment Setup
+#### Set up a Conda environment:
+```
+conda create -n irr python=3.10
+conda activate irr
 ```
 
-
-## Evaluating Model Safety Against Harmful Instructions
-
-This project evaluates the safety of models when confronted with harmful instructions.
-
-Use the following command to generate model responses:
-
-```bash
-python evaluate/generate_responses_v2.py \
-  --model $model_name \
-  --dataset evaluate/harmful_questions/${dataset_name}.json \
-  --save_path evaluate/results \
-  --save_name ${dataset_name}/${model_name}_sys_${system_prompt}.json \
-  --need_system_prompt $system_prompt
+#### Clone the repository and install the required dependencies:
+```
+git clone https://github.com/pikepokenew/IRR.git
+cd IRR
+pip install -r requirements.txt
 ```
 
-Evaluation Using MD-Judge
-Note: MD-Judge, a separate moderation model, must be downloaded additionally.
+### Usage
 
-To evaluate model responses with MD-Judge, run:
+The following steps outline how to use IRR for safety re-alignment, using a LoRA fine-tuned model as an example.
 
-```bash
-python evaluate/moderation_as_judge_v2.py \
-  --response_file evaluate/results/${dataset_name}/${model_name}_sys_${system_prompt}.json \
-  --save_path evaluate/results \
-  --batch_size $batch_size \
-  --moderation "MD-Judge"
+#### Step 1: Compute Safety Vector
+
 ```
-Evaluating Mathematical Abilities on GSM8K
-To assess the model's mathematical capabilities, execute the following command:
-
-```bash
-python eval_gsm8k_zero_shot_v2.py \
-  --model $model_name \
-  --use_cot_prompt \
-  --batch_size $batch_size \
-  --system_prompt $system_prompt
+python src/compute_safety_vector.py --model ${ALIGNED_MODEL_PATH} --base_model ${UNALIGNED_MODEL_PATH} --target lora
 ```
-Generating and Evaluating Results on HumanEval
-Use the commands below to generate and evaluate results for HumanEval:
 
-```bash
-output_variable=$(python evaluate/generate_human_eval_v2.py \
-  --model $base_model \
-  --batch_size 16 \
-  --use_chat_template \
-  --use_system_prompt \
-  --num_samples_per_task $num_samples)
-echo $output_variable
-file_path=$(echo "$output_variable" | awk -F 'Completed, please check ' '{print $2}')
-conda activate codex
-echo $file_path
-evaluate_functional_correctness $file_path
-conda deactivate
+#### Step 2: Compute Safety Importance Score (Fisher Information Matrix)
+
+* 2.1 Generate Safety Response Data
+
 ```
-Evaluating Chinese Language Abilities on MMMLU-ZH
-To evaluate the model's performance in Chinese, run the following command:
+python src/generate_responses.py --model ${ALIGNED_MODEL_PATH} --dataset ${HARMFUL_QUESTIONS_DATA} --need_system_prompt 1
+```
 
-```bash
-python llama3.py \
-  --model_name_or_path $base_model \
-  --data_dir ../data/MMMLU_ZH_CN \
-  --num_few_shot 0 \
-  --use_system_prompt $system_prompt \
-  --over_write 1 \
-  --language "ZH_CN"
+* 2.2 Calculate Fisher Information Matrix
+```
+python src/compute_fisher_information_matrix.py --model ${ALIGNED_MODEL_PATH} --dataset ${SAFETY_RESPONSE_DATA} --need_system_prompt 1 --target lora
+```
+
+### Step 3: Run IRR for Safety Re-Alignment
+```
+python IRR/llama.py \
+  --model ${FINETUNED_MODEL_PATH} \
+  --base_model ${BASE_MODEL_PATH} \
+  --dataset data/CodeAlpaca-20k.json \
+  --nsamples 10 \
+  --true-sequential \
+  --safe_FIM_path ${SAFETY_IMPORTANCE_SCORE_PATH} \
+  --safety_vector ${SAFETY_VECTOR_PATH} \
+  --save ${SAVE_MODEL_PATH} \
+  --sparsity 0.0 \
+  --blocksize 128 \
+  --method IRR \
+  --recalibrate 1 \
+  --need_system_prompt 1
+```
+For additional usage examples, refer to the ```scripts/eval_model_irr.sh``` script for configuration details.
+
+### Key Parameters for llama.py
+```
+Below are the key parameters for the llama.py script used in the IRR process:
+
+--safety_vector  
+Type: String  
+Description: Path to the safety vector data used to guide pruning (optional).  
+Default: None
+
+--true-sequential`
+Type: Boolean
+Description: Whether to run the model in true sequential mode (only prunes `self_attn.v_proj` and `self_attn.q_proj`).
+Default: `False`
+
+--recalibrate  
+
+Type: Integer  
+Description: Whether to recalibrate the model (0 for no, 1 for yes).  
+Default: 1
+
+--remove_more  
+
+Type: Integer  
+Description: Whether to remove more weights. When used with --method IRR, it corresponds to the IRR_more method described in the paper (0 for no, 1 for yes).  
+Default: 0
+
+--need_system_prompt  
+
+Type: Integer  
+Description: Whether a system prompt is required (0 for no, 1 for yes).  
+Default: 1
+
+--method  
+
+Type: String  
+Description: The pruning method to use (e.g., IRR).  
+Default: "IRR"
+```
+
+## References
+https://github.com/ist-daslab/sparsegpt
+
+
+## Citation
+If you use this codebase or the IRR method in your research, please cite the following paper:
+```
+@article{wu2024separate,
+  title={Separate the Wheat from the Chaff: A Post-Hoc Approach to Safety Re-Alignment for Fine-Tuned Language Models},
+  author={Wu, Di and Lu, Xin and Zhao, Yanyan and Qin, Bing},
+  journal={arXiv preprint arXiv:2412.11041},
+  year={2024}
+}
 ```

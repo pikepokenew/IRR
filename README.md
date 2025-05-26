@@ -2,7 +2,7 @@
 
 ## Overview
 
-IRR is a post-hoc method designed to restore safety performance in fine-tuned language models while preserving their downstream task capabilities. This repository contains the code to reproduce the key results from the paper "Separate the Wheat from the Chaff: A Post-Hoc Approach to Safety Re-Alignment for Fine-Tuned Language Models".
+IRR is a post-hoc method designed to restore safety performance in fine-tuned language models while preserving their downstream task capabilities. This repository contains the code to reproduce the key results from the paper "[Separate the Wheat from the Chaff: A Post-Hoc Approach to Safety Re-Alignment for Fine-Tuned Language Models](https://arxiv.org/abs/2412.11041)".
 
 ## Key Features
 This codebase provides the following scripts and implementations:

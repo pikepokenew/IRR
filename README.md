@@ -24,8 +24,8 @@ This codebase provides the following scripts and implementations:
 To use this codebase, you need:
 
 * A base aligned model (e.g., LLaMA-2).
-* A fine-tuned model (SFT model) derived from the base model.
-* An unaligned model derived from the base model.
+* A fine-tuned model (SFT model) derived from the base aligned model.
+* An unaligned model derived from the base aligned model.
 
 ### ⚙️ Environment Setup
 #### Set up a Conda environment:

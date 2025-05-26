@@ -127,7 +127,7 @@ Default: "IRR"
 
 
 ## Citation
-If you use this codebase or the IRR method in your research, please cite the following paper:
+If you found this work useful, please consider citing:
 ```
 @article{wu2024separate,
   title={Separate the Wheat from the Chaff: A Post-Hoc Approach to Safety Re-Alignment for Fine-Tuned Language Models},

@@ -8,15 +8,15 @@ IRR is a post-hoc method designed to restore safety performance in fine-tuned la
 This codebase provides the following scripts and implementations:
 
 * Safety Vector and Fisher Information Matrix Calculation:
-  * compute_safety_vector.py: Computes the safety vector for re-alignment.
-  * compute_fisher_information_matrix.py: Calculates the Fisher Information Matrix (FIM) as a safety importance score.
+  * ```compute_safety_vector.py```: Computes the safety vector for re-alignment.
+  * ```compute_fisher_information_matrix.py```: Calculates the Fisher Information Matrix (FIM) as a safety importance score.
 
 * Safety Re-Alignment with IRR:
-  * llama.py: Applies the IRR method to fine-tuned models for safety re-alignment.
+  * ```llama.py```: Applies the IRR method to fine-tuned models for safety re-alignment.
 
 * Model Generation and Evaluation:
-  * generate_responses.py: Generates responses from the model.
-  * moderation_as_judge.py: Evaluates the generated responses for safety.
+  * ```generate_responses.py```: Generates responses from the model.
+  * ```moderation_as_judge.py```: Evaluates the generated responses for safety.
 
 ## Getting Started
 ### Prerequisites

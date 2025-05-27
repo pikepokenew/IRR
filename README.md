@@ -1,4 +1,4 @@
-# IRR
+# IRR: Separate the Wheat from the Chaff: A Post-Hoc Approach to Safety Re-Alignment for Fine-Tuned Language Models
 
 ## Overview
 
